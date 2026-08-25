@@ -24,4 +24,7 @@ test('new users can register', function () {
         ->assertRedirect(route('dashboard', absolute: false));
 
     $this->assertAuthenticated();
+
+    expect(auth()->user()->public_id)->toBeUuid()
+        ->and(auth()->user()->status)->toBe('ACTIVE');
 });
