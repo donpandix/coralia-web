@@ -30,10 +30,25 @@ it('toggles favorites only for a visible piece', function () {
     PieceShare::factory()->for($piece)->create();
     $this->actingAs($user);
 
-    Livewire::test('pages::library.index')->call('toggleFavorite', $piece->id)->assertHasNoErrors();
+    $component = Livewire::test('pages::library.index')
+        ->assertSeeHtml('data-favorite-state="unselected"')
+        ->assertSeeHtml('aria-pressed="false"')
+        ->assertSee('Agregar a favoritos')
+        ->call('toggleFavorite', $piece->id)
+        ->assertHasNoErrors()
+        ->assertSeeHtml('data-favorite-state="selected"')
+        ->assertSeeHtml('aria-pressed="true"')
+        ->assertSee('Quitar de favoritos');
+
     expect(Favorite::query()->whereBelongsTo($user)->whereBelongsTo($piece)->exists())->toBeTrue();
 
-    Livewire::test('pages::library.index')->call('toggleFavorite', $piece->id)->assertHasNoErrors();
+    $component
+        ->call('toggleFavorite', $piece->id)
+        ->assertHasNoErrors()
+        ->assertSeeHtml('data-favorite-state="unselected"')
+        ->assertSeeHtml('aria-pressed="false"')
+        ->assertSee('Agregar a favoritos');
+
     expect(Favorite::query()->whereBelongsTo($user)->whereBelongsTo($piece)->exists())->toBeFalse();
 });
 

@@ -62,9 +62,20 @@ new #[Title('Detalle de pieza')] class extends Component {
 <div class="mx-auto max-w-5xl">
     <flux:button variant="ghost" icon="arrow-left" :href="route('library.index')" wire:navigate>Biblioteca</flux:button>
 
+    @php($isFavorite = $this->favorite)
     <header class="mt-6 flex items-start justify-between gap-4">
         <div><flux:heading size="xl" level="1">{{ $piece->title }}</flux:heading>@if($piece->subtitle)<flux:text class="mt-2">{{ $piece->subtitle }}</flux:text>@endif@if($piece->tags->isNotEmpty())<div class="mt-4 flex flex-wrap gap-2">@foreach($piece->tags as $tag)<flux:badge size="sm" color="zinc" wire:key="piece-tag-{{ $tag->id }}">{{ $tag->name }}</flux:badge>@endforeach</div>@endif</div>
-        <flux:button wire:click="toggleFavorite" variant="ghost" icon="star" :class="$this->favorite ? 'text-coral-700 dark:text-coral-300' : ''" :aria-label="$this->favorite ? 'Quitar de favoritos' : 'Agregar a favoritos'" />
+        <flux:button
+            wire:click="toggleFavorite"
+            variant="ghost"
+            icon="star"
+            icon:variant="{{ $isFavorite ? 'solid' : 'outline' }}"
+            icon:class="{{ $isFavorite ? 'text-coral-600 dark:text-coral-300' : 'text-zinc-400 dark:text-zinc-500' }}"
+            :class="$isFavorite ? 'ring-1 ring-coral-200 dark:ring-coral-800' : ''"
+            :aria-label="$isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+            :aria-pressed="$isFavorite ? 'true' : 'false'"
+            data-favorite-state="{{ $isFavorite ? 'selected' : 'unselected' }}"
+        />
     </header>
 
     @if($piece->body)<div class="mt-8 max-w-3xl whitespace-pre-line leading-7 text-zinc-600 dark:text-zinc-300">{{ $piece->body }}</div>@endif
