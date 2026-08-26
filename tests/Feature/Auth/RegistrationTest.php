@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserStatus;
 use Laravel\Fortify\Features;
 
 beforeEach(function () {
@@ -26,5 +27,5 @@ test('new users can register', function () {
     $this->assertAuthenticated();
 
     expect(auth()->user()->public_id)->toBeUuid()
-        ->and(auth()->user()->status)->toBe('ACTIVE');
+        ->and(auth()->user()->status)->toBe(UserStatus::Active);
 });
