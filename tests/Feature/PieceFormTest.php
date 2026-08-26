@@ -2,6 +2,7 @@
 
 use App\Enums\PieceFileType;
 use App\Enums\PieceShareType;
+use App\Enums\TagStatus;
 use App\Enums\VoiceType;
 use App\Models\OrganizationMembership;
 use App\Models\Piece;
@@ -53,4 +54,57 @@ it('rejects piece files larger than five megabytes', function () {
         ->assertHasErrors(['score' => 'max']);
 
     expect(Piece::query()->where('title', 'Pieza inválida')->exists())->toBeFalse();
+});
+
+it('allows an organization administrator to create and select a tag from the piece form', function () {
+    $admin = User::factory()->create();
+    OrganizationMembership::factory()->admin()->for($admin)->create();
+    $this->actingAs($admin);
+
+    $component = Livewire::test('pages::organization.pieces.form')
+        ->assertSee('Crear etiqueta')
+        ->set('newTagName', '  Renacimiento   tardío  ')
+        ->call('createTag')
+        ->assertHasNoErrors();
+
+    $tag = Tag::query()->where('slug', 'renacimiento-tardio')->firstOrFail();
+
+    expect($tag->name)->toBe('Renacimiento tardío')
+        ->and($tag->status)->toBe(TagStatus::Active)
+        ->and($tag->created_by)->toBe($admin->id);
+    $component->assertSet('tagIds', [(string) $tag->id]);
+});
+
+it('selects an existing active tag instead of creating a duplicate', function () {
+    $admin = User::factory()->create();
+    OrganizationMembership::factory()->admin()->for($admin)->create();
+    $tag = Tag::factory()->create(['name' => 'Renacimiento tardío', 'slug' => 'renacimiento-tardio']);
+    $this->actingAs($admin);
+
+    Livewire::test('pages::organization.pieces.form')
+        ->set('newTagName', 'Renacimiento tardío')
+        ->call('createTag')
+        ->assertHasNoErrors()
+        ->assertSet('tagIds', [(string) $tag->id]);
+
+    expect(Tag::query()->where('slug', 'renacimiento-tardio')->count())->toBe(1);
+});
+
+it('does not reactivate an inactive tag from the piece form', function () {
+    $admin = User::factory()->create();
+    OrganizationMembership::factory()->admin()->for($admin)->create();
+    $tag = Tag::factory()->create([
+        'name' => 'Etiqueta histórica',
+        'slug' => 'etiqueta-historica',
+        'status' => TagStatus::Inactive,
+    ]);
+    $this->actingAs($admin);
+
+    Livewire::test('pages::organization.pieces.form')
+        ->set('newTagName', 'Etiqueta histórica')
+        ->call('createTag')
+        ->assertHasErrors(['newTagName'])
+        ->assertSet('tagIds', []);
+
+    expect($tag->refresh()->status)->toBe(TagStatus::Inactive);
 });

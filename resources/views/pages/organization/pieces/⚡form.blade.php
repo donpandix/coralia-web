@@ -16,6 +16,7 @@ use App\Support\CurrentOrganization;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
@@ -31,6 +32,7 @@ new #[Title('Editar pieza')] class extends Component {
     public string $body = '';
     public string $status = 'ACTIVE';
     public array $tagIds = [];
+    public string $newTagName = '';
     public bool $shareOrganization = true;
     public array $voiceShares = [];
     public array $groupIds = [];
@@ -64,6 +66,59 @@ new #[Title('Editar pieza')] class extends Component {
     #[Computed] public function groups() { return Group::query()->forOrganization(app(CurrentOrganization::class)->organization(Auth::user()))->where('status', 'ACTIVE')->orderBy('name')->get(['id', 'name']); }
     #[Computed] public function members() { return OrganizationMembership::query()->forOrganization(app(CurrentOrganization::class)->organization(Auth::user()))->where('status', OrganizationMembershipStatus::Active)->where('role', OrganizationRole::Member)->with('user:id,name')->get()->sortBy('user.name'); }
 
+    public function prepareTagCreation(): void
+    {
+        Gate::authorize($this->piece ? 'update' : 'create', $this->piece ?? Piece::class);
+        $this->reset('newTagName');
+        $this->resetValidation('newTagName');
+        Flux::modal('piece-tag-form')->show();
+    }
+
+    public function createTag(): void
+    {
+        Gate::authorize($this->piece ? 'update' : 'create', $this->piece ?? Piece::class);
+        $this->newTagName = Str::squish($this->newTagName);
+        $validated = $this->validate([
+            'newTagName' => ['required', 'string', 'max:100'],
+        ], [
+            'newTagName.required' => 'Escribe el nombre de la etiqueta.',
+            'newTagName.max' => 'La etiqueta no puede superar los 100 caracteres.',
+        ]);
+
+        $slug = Str::slug($validated['newTagName']);
+
+        if ($slug === '') {
+            $this->addError('newTagName', 'Usa al menos una letra o un número.');
+
+            return;
+        }
+
+        $tag = Tag::query()->where('slug', $slug)->first();
+
+        if ($tag?->status === TagStatus::Inactive) {
+            $this->addError('newTagName', 'Esta etiqueta existe, pero está inactiva. Solicita su activación al superadministrador.');
+
+            return;
+        }
+
+        $tag ??= Tag::query()->create([
+            'name' => $validated['newTagName'],
+            'slug' => $slug,
+            'status' => TagStatus::Active,
+            'created_by' => Auth::id(),
+        ]);
+
+        $this->tagIds = collect($this->tagIds)
+            ->push((string) $tag->id)
+            ->unique()
+            ->values()
+            ->all();
+        unset($this->tags);
+        $this->reset('newTagName');
+        Flux::modal('piece-tag-form')->close();
+        Flux::toast(variant: 'success', text: $tag->wasRecentlyCreated ? 'Etiqueta creada y seleccionada.' : 'Etiqueta existente seleccionada.');
+    }
+
     public function save(SavePiece $savePiece): void
     {
         Gate::authorize($this->piece ? 'update' : 'create', $this->piece ?? Piece::class);
@@ -93,7 +148,7 @@ new #[Title('Editar pieza')] class extends Component {
     <flux:button variant="ghost" icon="arrow-left" :href="route('organization.pieces.index')" wire:navigate>Piezas</flux:button>
     <x-page-header class="mt-5" :title="$piece ? 'Editar pieza' : 'Nueva pieza'" description="Organiza la información, archivos y destinatarios del material." />
     <form wire:submit="save" class="mt-8 space-y-10">
-        <section aria-labelledby="information-heading"><h2 id="information-heading" class="border-b border-zinc-200 pb-3 text-lg font-semibold dark:border-zinc-800">Información</h2><div class="mt-5 grid gap-5"><flux:input wire:model="title" label="Título" required maxlength="100" /><flux:input wire:model="subtitle" label="Subtítulo" maxlength="250" /><flux:textarea wire:model="body" label="Texto" rows="6" /><div class="grid gap-5 sm:grid-cols-2"><flux:select wire:model="status" label="Estado">@foreach(PieceStatus::cases() as $statusOption)<flux:select.option :value="$statusOption->value">{{ $statusOption->label() }}</flux:select.option>@endforeach</flux:select><fieldset><legend class="mb-2 text-sm font-medium">Etiquetas</legend><div class="flex max-h-40 flex-wrap gap-3 overflow-y-auto rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">@foreach($this->tags as $tag)<flux:checkbox wire:model="tagIds" :value="$tag->id" :label="$tag->name" wire:key="form-tag-{{ $tag->id }}" />@endforeach</div></fieldset></div></div></section>
+        <section aria-labelledby="information-heading"><h2 id="information-heading" class="border-b border-zinc-200 pb-3 text-lg font-semibold dark:border-zinc-800">Información</h2><div class="mt-5 grid gap-5"><flux:input wire:model="title" label="Título" required maxlength="100" /><flux:input wire:model="subtitle" label="Subtítulo" maxlength="250" /><flux:textarea wire:model="body" label="Texto" rows="6" /><div class="grid gap-5 sm:grid-cols-2"><flux:select wire:model="status" label="Estado">@foreach(PieceStatus::cases() as $statusOption)<flux:select.option :value="$statusOption->value">{{ $statusOption->label() }}</flux:select.option>@endforeach</flux:select><fieldset><div class="mb-2 flex items-center justify-between gap-3"><legend class="text-sm font-medium">Etiquetas</legend><flux:button type="button" size="sm" variant="ghost" icon="plus" wire:click="prepareTagCreation">Crear etiqueta</flux:button></div><div class="flex max-h-40 flex-wrap gap-3 overflow-y-auto rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">@forelse($this->tags as $tag)<flux:checkbox wire:model="tagIds" :value="$tag->id" :label="$tag->name" wire:key="form-tag-{{ $tag->id }}" />@empty<p class="text-sm text-zinc-500">Todavía no hay etiquetas activas.</p>@endforelse</div></fieldset></div></div></section>
 
         <section aria-labelledby="score-form-heading"><h2 id="score-form-heading" class="border-b border-zinc-200 pb-3 text-lg font-semibold dark:border-zinc-800">Partitura</h2><div class="mt-5"><flux:input wire:model="score" type="file" label="PDF (máximo 5 MB)" accept="application/pdf" />@if($piece?->files->firstWhere('file_type', PieceFileType::Score))<p class="mt-2 text-sm text-zinc-500">Archivo actual: {{ $piece->files->firstWhere('file_type', PieceFileType::Score)->original_filename }}</p>@endif</div></section>
 
@@ -102,4 +157,18 @@ new #[Title('Editar pieza')] class extends Component {
         <section aria-labelledby="sharing-heading"><h2 id="sharing-heading" class="border-b border-zinc-200 pb-3 text-lg font-semibold dark:border-zinc-800">Compartir con</h2><div class="mt-5 space-y-6"><flux:checkbox wire:model="shareOrganization" label="Toda la organización" /><fieldset><legend class="mb-3 text-sm font-medium">Cuerdas</legend><div class="flex flex-wrap gap-4">@foreach([VoiceType::Soprano, VoiceType::Alto, VoiceType::Tenor, VoiceType::Bass] as $voice)<flux:checkbox wire:model="voiceShares" :value="$voice->value" :label="$voice->value" />@endforeach</div></fieldset><div class="grid gap-6 md:grid-cols-2"><fieldset><legend class="mb-3 text-sm font-medium">Grupos</legend><div class="max-h-52 space-y-2 overflow-y-auto rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">@forelse($this->groups as $group)<flux:checkbox wire:model="groupIds" :value="$group->id" :label="$group->name" wire:key="share-group-{{ $group->id }}" />@empty<p class="text-sm text-zinc-500">No hay grupos activos.</p>@endforelse</div></fieldset><fieldset><legend class="mb-3 text-sm font-medium">Usuarios</legend><div class="max-h-52 space-y-2 overflow-y-auto rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">@foreach($this->members as $member)<flux:checkbox wire:model="membershipIds" :value="$member->id" :label="$member->user->name.' · '.($member->voice_type?->value ?? '')" wire:key="share-member-{{ $member->id }}" />@endforeach</div></fieldset></div><flux:error name="shareOrganization" /></div></section>
         <div class="sticky bottom-4 flex justify-end rounded-xl border border-zinc-200 bg-white/95 p-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95"><flux:button type="submit" variant="primary" wire:loading.attr="disabled">Guardar pieza</flux:button></div>
     </form>
+
+    <flux:modal name="piece-tag-form" class="md:w-96">
+        <form wire:submit="createTag" class="space-y-6">
+            <div>
+                <flux:heading size="lg">Nueva etiqueta</flux:heading>
+                <flux:text class="mt-2">Se añadirá al catálogo y quedará seleccionada para esta pieza.</flux:text>
+            </div>
+            <flux:input wire:model="newTagName" label="Nombre" placeholder="Ej. Renacimiento" maxlength="100" required autofocus />
+            <div class="flex justify-end gap-2">
+                <flux:modal.close><flux:button type="button" variant="ghost">Cancelar</flux:button></flux:modal.close>
+                <flux:button type="submit" variant="primary" wire:loading.attr="disabled" wire:target="createTag">Crear y seleccionar</flux:button>
+            </div>
+        </form>
+    </flux:modal>
 </div>
