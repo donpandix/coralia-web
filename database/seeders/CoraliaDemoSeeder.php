@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Enums\OrganizationMembershipStatus;
 use App\Enums\OrganizationRole;
 use App\Enums\OrganizationStatus;
-use App\Enums\PieceFileType;
 use App\Enums\PieceShareType;
 use App\Enums\PieceStatus;
 use App\Enums\TagStatus;
@@ -15,7 +14,6 @@ use App\Models\Group;
 use App\Models\Organization;
 use App\Models\OrganizationMembership;
 use App\Models\Piece;
-use App\Models\PieceFile;
 use App\Models\PieceShare;
 use App\Models\PieceView;
 use App\Models\Tag;
@@ -180,14 +178,6 @@ class CoraliaDemoSeeder extends Seeder
                     $tags[($pieceNumber - 1) % $tags->count()]->id,
                     $tags[$pieceNumber % $tags->count()]->id,
                 ]);
-
-                PieceFile::factory()
-                    ->for($piece)
-                    ->for($creator, 'creator')
-                    ->create([
-                        'file_type' => PieceFileType::Score,
-                        'voice_type' => VoiceType::General,
-                    ]);
 
                 return $piece;
             },

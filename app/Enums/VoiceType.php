@@ -14,4 +14,15 @@ enum VoiceType: string
     {
         return $this !== self::General;
     }
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::General => 'General',
+            self::Soprano => 'Soprano',
+            self::Alto => 'Alto',
+            self::Tenor => 'Tenor',
+            self::Bass => 'Bajo',
+        };
+    }
 }

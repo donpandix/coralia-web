@@ -14,6 +14,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property OrganizationRole $role
+ * @property VoiceType|null $voice_type
+ * @property OrganizationMembershipStatus $status
+ */
 #[Fillable(['organization_id', 'user_id', 'role', 'voice_type', 'status', 'requested_at', 'approved_at', 'approved_by', 'joined_at', 'left_at'])]
 class OrganizationMembership extends Model
 {

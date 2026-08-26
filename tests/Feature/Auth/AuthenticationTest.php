@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserStatus;
 use App\Models\User;
 use Laravel\Fortify\Features;
 
@@ -34,6 +35,31 @@ test('users can not authenticate with invalid password', function () {
 
     $response->assertSessionHasErrorsIn('email');
 
+    $this->assertGuest();
+});
+
+test('unknown users are redirected back with a credential error', function () {
+    $response = $this->from(route('login'))->post(route('login.store'), [
+        'email' => 'noexiste@coralia.test',
+        'password' => 'incorrecta',
+    ]);
+
+    $response
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrorsIn('email');
+
+    $this->assertGuest();
+});
+
+test('suspended users can not authenticate', function () {
+    $user = User::factory()->create(['status' => UserStatus::Suspended]);
+
+    $response = $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+    ]);
+
+    $response->assertSessionHasErrorsIn('email');
     $this->assertGuest();
 });
 

@@ -5,15 +5,20 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
-new #[Title('Profile settings')] class extends Component {
+new #[Title('Perfil')] class extends Component {
     use ProfileValidationRules;
+    use WithFileUploads;
 
     public string $name = '';
     public string $email = '';
+    public string $description = '';
+    public $photo;
 
     /**
      * Mount the component.
@@ -22,6 +27,7 @@ new #[Title('Profile settings')] class extends Component {
     {
         $this->name = Auth::user()->name;
         $this->email = Auth::user()->email;
+        $this->description = Auth::user()->description ?? '';
     }
 
     /**
@@ -31,7 +37,21 @@ new #[Title('Profile settings')] class extends Component {
     {
         $user = Auth::user();
 
-        $validated = $this->validate($this->profileRules($user->id));
+        $validated = $this->validate([
+            ...$this->profileRules($user->id),
+            'description' => ['nullable', 'string', 'max:500'],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ]);
+
+        if ($this->photo) {
+            if ($user->photo_path) {
+                Storage::disk('public')->delete($user->photo_path);
+            }
+
+            $validated['photo_path'] = $this->photo->store('profiles/'.$user->public_id, 'public');
+        }
+
+        unset($validated['photo']);
 
         $user->fill($validated);
 
@@ -41,7 +61,8 @@ new #[Title('Profile settings')] class extends Component {
 
         $user->save();
 
-        Flux::toast(variant: 'success', text: __('Profile updated.'));
+        $this->reset('photo');
+        Flux::toast(variant: 'success', text: 'Perfil actualizado.');
     }
 
     /**
@@ -79,11 +100,15 @@ new #[Title('Profile settings')] class extends Component {
 <section class="w-full">
     @include('partials.settings-heading')
 
-    <flux:heading level="2" class="sr-only">{{ __('Profile settings') }}</flux:heading>
+    <flux:heading level="2" class="sr-only">Perfil</flux:heading>
 
-    <x-pages::settings.layout :heading="__('Profile')" :subheading="__('Update your name and email address')">
+    <x-pages::settings.layout heading="Perfil" subheading="Actualiza tu información personal">
         <form wire:submit="updateProfileInformation" class="my-6 w-full space-y-6">
-            <flux:input wire:model="name" :label="__('Name')" type="text" required autofocus autocomplete="name" />
+            <div class="flex items-center gap-4">@if(Auth::user()->photo_path)<img src="{{ Storage::disk('public')->url(Auth::user()->photo_path) }}" alt="Foto de {{ Auth::user()->name }}" class="size-16 rounded-full object-cover">@else<flux:avatar :name="Auth::user()->name" :initials="Auth::user()->initials()" size="lg" />@endif<flux:input wire:model="photo" type="file" label="Foto" accept="image/jpeg,image/png,image/webp" /></div>
+
+            <flux:input wire:model="name" label="Nombre" type="text" required autofocus autocomplete="name" />
+
+            <flux:textarea wire:model="description" label="Descripción" rows="4" maxlength="500" />
 
             <div>
                 <flux:input wire:model="email" :label="__('Email')" type="email" required autocomplete="email" />
@@ -110,7 +135,7 @@ new #[Title('Profile settings')] class extends Component {
             <div class="flex items-center gap-4">
                 <div class="flex items-center justify-end">
                     <flux:button variant="primary" type="submit" class="w-full" data-test="update-profile-button">
-                        {{ __('Save') }}
+                    Guardar cambios
                     </flux:button>
                 </div>
 
