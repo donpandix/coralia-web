@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Enums\PieceShareType;
 use App\Enums\PieceStatus;
 use App\Models\Concerns\BelongsToOrganization;
 use App\Models\Concerns\HasPublicId;
 use Database\Factories\PieceFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -71,6 +73,33 @@ class Piece extends Model
     public function views(): HasMany
     {
         return $this->hasMany(PieceView::class);
+    }
+
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeVisibleToMembership(Builder $query, OrganizationMembership $membership): Builder
+    {
+        $groupIds = $membership->groups()->pluck('groups.id');
+
+        return $query
+            ->where('organization_id', $membership->organization_id)
+            ->where('status', PieceStatus::Active)
+            ->whereNotNull('published_at')
+            ->where(function (Builder $pieceQuery) use ($membership, $groupIds): void {
+                $pieceQuery->whereHas('shares', fn (Builder $shareQuery): Builder => $shareQuery
+                    ->where('share_type', PieceShareType::Organization))
+                    ->orWhereHas('shares', fn (Builder $shareQuery): Builder => $shareQuery
+                        ->where('share_type', PieceShareType::Voice)
+                        ->where('voice_type', $membership->voice_type))
+                    ->orWhereHas('shares', fn (Builder $shareQuery): Builder => $shareQuery
+                        ->where('share_type', PieceShareType::Group)
+                        ->whereIn('group_id', $groupIds))
+                    ->orWhereHas('shares', fn (Builder $shareQuery): Builder => $shareQuery
+                        ->where('share_type', PieceShareType::Member)
+                        ->where('membership_id', $membership->id));
+            });
     }
 
     /**

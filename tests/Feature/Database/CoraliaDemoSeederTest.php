@@ -6,6 +6,7 @@ use App\Models\Group;
 use App\Models\Organization;
 use App\Models\OrganizationMembership;
 use App\Models\Piece;
+use App\Models\PieceFile;
 use App\Models\PieceShare;
 use App\Models\Tag;
 use App\Models\User;
@@ -22,6 +23,7 @@ test('creates the required multi-organization demonstration data', function () {
         ->and(Group::query()->count())->toBe(3)
         ->and(Tag::query()->count())->toBe(6)
         ->and(Piece::query()->count())->toBe(10)
+        ->and(PieceFile::query()->count())->toBe(0)
         ->and(PieceShare::query()->count())->toBe(16);
 
     foreach ([VoiceType::Soprano, VoiceType::Alto, VoiceType::Tenor, VoiceType::Bass] as $voiceType) {

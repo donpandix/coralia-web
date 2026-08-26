@@ -18,7 +18,7 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      APP_NAME: PromptVault
+      APP_NAME: Coralia
       APP_ENV: local
       APP_DEBUG: "true"
       APP_URL: http://localhost:8000
@@ -26,7 +26,7 @@ services:
       DB_CONNECTION: mysql
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_DATABASE: prompt_vault
+      DB_DATABASE: coralia
       DB_USERNAME: root
       DB_PASSWORD: root
       CACHE_STORE: file
@@ -39,9 +39,14 @@ services:
       composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-ansi && 
       npm install --no-fund --no-audit && 
       npm run build && 
+      mkdir -p storage/logs bootstrap/cache &&
+      chown -R www-data:www-data storage bootstrap/cache &&
+      chmod -R ug+rwX storage bootstrap/cache &&
       php artisan key:generate --force && 
       php artisan storage:link &&
       php artisan migrate --force && 
+      chown -R www-data:www-data storage bootstrap/cache &&
+      chmod -R ug+rwX storage bootstrap/cache &&
       apache2-foreground
       "
     healthcheck:

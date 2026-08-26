@@ -26,13 +26,30 @@
     --color-accent: var(--color-neutral-800);
     --color-accent-content: var(--color-neutral-800);
     --color-accent-foreground: var(--color-white);
+
+    --color-coral-50: #fff5f2;
+    --color-coral-100: #ffe7e0;
+    --color-coral-200: #ffcfc2;
+    --color-coral-300: #fcae9a;
+    --color-coral-400: #f4856e;
+    --color-coral-500: #e7654e;
+    --color-coral-600: #c94d39;
+    --color-coral-700: #a83d2e;
+    --color-coral-800: #8b352a;
+    --color-coral-900: #743127;
+    --color-coral-950: #3f1611;
+}
+
+:root {
+    --color-accent: var(--color-coral-600);
+    --color-accent-content: var(--color-coral-700);
 }
 
 @layer theme {
     .dark {
-        --color-accent: var(--color-white);
-        --color-accent-content: var(--color-white);
-        --color-accent-foreground: var(--color-neutral-800);
+        --color-accent: var(--color-coral-400);
+        --color-accent-content: var(--color-coral-300);
+        --color-accent-foreground: var(--color-zinc-950);
     }
 }
 
@@ -59,6 +76,10 @@ input:focus[data-flux-control],
 textarea:focus[data-flux-control],
 select:focus[data-flux-control] {
     @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+}
+
+.coralia-page {
+    @apply mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8;
 }
 
 /* \[:where(&)\]:size-4 {
